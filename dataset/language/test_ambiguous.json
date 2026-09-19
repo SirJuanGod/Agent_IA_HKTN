@@ -1,0 +1,92 @@
+[
+  {
+    "id": "ambiguous_0001",
+    "text": "avanza",
+    "expected": "AMBIGUOUS",
+    "reason": "MISSING_DIRECTION"
+  },
+  {
+    "id": "ambiguous_0002",
+    "text": "muévete",
+    "expected": "AMBIGUOUS",
+    "reason": "MISSING_DIRECTION"
+  },
+  {
+    "id": "ambiguous_0003",
+    "text": "ve",
+    "expected": "AMBIGUOUS",
+    "reason": "MISSING_DIRECTION"
+  },
+  {
+    "id": "ambiguous_0004",
+    "text": "sigue",
+    "expected": "AMBIGUOUS",
+    "reason": "MISSING_DIRECTION"
+  },
+  {
+    "id": "ambiguous_0005",
+    "text": "adelante",
+    "expected": "AMBIGUOUS",
+    "reason": "MISSING_DIRECTION"
+  },
+  {
+    "id": "ambiguous_0006",
+    "text": "muévete un poco",
+    "expected": "AMBIGUOUS",
+    "reason": "MISSING_DIRECTION"
+  },
+  {
+    "id": "ambiguous_0007",
+    "text": "avanza un poco",
+    "expected": "AMBIGUOUS",
+    "reason": "MISSING_DIRECTION"
+  },
+  {
+    "id": "ambiguous_0008",
+    "text": "ve por ese lado",
+    "expected": "AMBIGUOUS",
+    "reason": "UNRESOLVED_REFERENCE"
+  },
+  {
+    "id": "ambiguous_0009",
+    "text": "muévete por ahí",
+    "expected": "AMBIGUOUS",
+    "reason": "UNRESOLVED_REFERENCE"
+  },
+  {
+    "id": "ambiguous_0010",
+    "text": "sigue por ese camino",
+    "expected": "AMBIGUOUS",
+    "reason": "UNRESOLVED_REFERENCE"
+  },
+  {
+    "id": "ambiguous_0011",
+    "text": "ve por allá",
+    "expected": "AMBIGUOUS",
+    "reason": "UNRESOLVED_REFERENCE"
+  },
+  {
+    "id": "ambiguous_0012",
+    "text": "muévete hacia ese lado",
+    "expected": "AMBIGUOUS",
+    "reason": "UNRESOLVED_REFERENCE"
+  },
+  {
+    "id": "ambiguous_0013",
+    "text": "haz algo",
+    "expected": "AMBIGUOUS",
+    "reason": "INSUFFICIENT_INFORMATION"
+  },
+  {
+    "id": "ambiguous_0014",
+    "text": "continúa",
+    "expected": "AMBIGUOUS",
+    "reason": "MISSING_DIRECTION"
+  },
+  {
+    "id": "ambiguous_0015",
+    "text": "sigue avanzando",
+    "expected": "AMBIGUOUS",
+    "reason": "MISSING_DIRECTION"
+  }
+]

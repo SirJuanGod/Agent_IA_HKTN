@@ -1,111 +1,170 @@
-class GridWorld:
+import os 
+import sys
 
-    ACTION_UP = 0
-    ACTION_DOWN = 1
-    ACTION_LEFT = 2
-    ACTION_RIGHT = 3
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-    def __init__(self, size=5, max_steps=100):
-        self.size = size
-        self.max_steps = max_steps
+from typing import Any, Dict
 
-        self.agent = [0, 0]
-        self.goal = [size - 1, size - 1]
+from rbj.environment.base import Environment
 
-        self.steps = 0
 
-    def reset(self):
-        self.agent = [0, 0]
-        self.goal = [self.size - 1, self.size - 1]
-        self.steps = 0
+class GridWorldEnvironment(Environment):
+    """
+    Entorno mínimo de prueba para SJG-Agent.
 
-        return self.get_state()
+    Este componente representa el mundo.
+    NO forma parte del World Model.
+    """
 
-    def get_state(self):
-        return [
-            self.agent[0] / (self.size - 1),
-            self.agent[1] / (self.size - 1),
-            self.goal[0] / (self.size - 1),
-            self.goal[1] / (self.size - 1)
+    def __init__(
+        self,
+        width: int = 5,
+        height: int = 5
+    ):
+
+        self.width = width
+        self.height = height
+
+        self.agent_position = [0, 0]
+
+        self.goal_position = [4, 4]
+
+        self.obstacles = [
+            [1, 1],
+            [2, 1],
+            [3, 3],
         ]
 
-    def step(self, action):
+        self.done = False
 
-        old_distance = self._distance_to_goal()
+    # ============================================================
+    # RESET
+    # ============================================================
 
-        if action == self.ACTION_UP:
-            self.agent[1] += 1
+    def reset(self) -> Dict[str, Any]:
 
-        elif action == self.ACTION_DOWN:
-            self.agent[1] -= 1
+        self.agent_position = [0, 0]
 
-        elif action == self.ACTION_LEFT:
-            self.agent[0] -= 1
+        self.done = False
 
-        elif action == self.ACTION_RIGHT:
-            self.agent[0] += 1
+        return self.observe()
 
-        # Limitar al mapa
-        self.agent[0] = max(
-            0,
-            min(self.agent[0], self.size - 1)
+    # ============================================================
+    # OBSERVE
+    # ============================================================
+
+    def observe(self) -> Dict[str, Any]:
+
+        return {
+            "environment": {
+                "type": "GRID_WORLD",
+                "width": self.width,
+                "height": self.height,
+            },
+
+            "agent": {
+                "position": self.agent_position.copy(),
+            },
+
+            "goal": {
+                "position": self.goal_position.copy(),
+            },
+
+            "obstacles": [
+                obstacle.copy()
+                for obstacle in self.obstacles
+            ],
+        }
+
+    # ============================================================
+    # STEP
+    # ============================================================
+
+    def step(
+        self,
+        action: Dict[str, Any]
+    ) -> Dict[str, Any]:
+
+        if self.done:
+            return self.observe()
+
+        if action.get("action") != "MOVE":
+            return self.observe()
+
+        direction = action.get(
+            "direction"
         )
 
-        self.agent[1] = max(
-            0,
-            min(self.agent[1], self.size - 1)
+        distance = action.get(
+            "distance",
+            1
         )
 
-        self.steps += 1
+        if not isinstance(
+            distance,
+            int
+        ):
+            distance = 1
 
-        new_distance = self._distance_to_goal()
+        x, y = self.agent_position
 
-        # Llegó al objetivo
-        if self.agent == self.goal:
-            reward = 10.0
-            done = True
+        if direction == "UP":
+            y -= distance
 
-        # Se acabó el episodio
-        elif self.steps >= self.max_steps:
-            reward = -10.0
-            done = True
+        elif direction == "DOWN":
+            y += distance
 
-        else:
-            # Recompensa por acercarse
-            if new_distance < old_distance:
-                reward = -0.1
-            else:
-                reward = -0.3
+        elif direction == "LEFT":
+            x -= distance
 
-            done = False
+        elif direction == "RIGHT":
+            x += distance
 
-        return self.get_state(), reward, done
+        # Mantener dentro del mundo.
+        x = max(
+            0,
+            min(
+                self.width - 1,
+                x
+            )
+        )
 
-    def _distance_to_goal(self):
-        dx = self.goal[0] - self.agent[0]
-        dy = self.goal[1] - self.agent[1]
+        y = max(
+            0,
+            min(
+                self.height - 1,
+                y
+            )
+        )
 
-        return abs(dx) + abs(dy)
+        # No atravesar obstáculos.
+        if [x, y] not in self.obstacles:
 
-    def render(self):
+            self.agent_position = [
+                x,
+                y
+            ]
 
-        print()
+        if (
+            self.agent_position
+            == self.goal_position
+        ):
+            self.done = True
 
-        for y in reversed(range(self.size)):
+        return self.observe()
 
-            row = ""
+    # ============================================================
+    # DONE
+    # ============================================================
 
-            for x in range(self.size):
+    def is_done(self) -> bool:
 
-                if [x, y] == self.agent:
-                    row += " A "
+        return self.done
 
-                elif [x, y] == self.goal:
-                    row += " G "
+    # ============================================================
+    # CLOSE
+    # ============================================================
 
-                else:
-                    row += " . "
+    def close(self) -> None:
 
-            print(row)
-
-        print()
+        pass

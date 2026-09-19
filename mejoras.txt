@@ -1,0 +1,18 @@
+Dataset:
+El dataset que se tiene actualmente es muy pequeño y no es representativo 
+de la diversidad del lenguaje natural. Sería necesario aumentarlo y diversitycarlo 
+con más ejemplos de frases y variaciones de las mismas.
+
+
+Mejorar la perseccion de la ambiguedad 
+que el agente pueda predecir si una sentencia es ambigua o no
+
+Hacer que la predicion semantica se sume y se divida entre la cantidad de 
+clases y el valor debe dar por encima de 0.89 para poder que se acepte, pero 
+luego debe volver a pasar y hacer la prediccion 3 veces hasta que sea aceptable, ademas 
+esa red debe tener retro propagacion con una funcion de activacion mas agresiva que 
+ayude a estimar mejor la intencion del comando. 
+
+El modelo debe poder ejecurtase con cualquier Base de simulador o en sistemas de puete como 
+ros/ros 2 
+

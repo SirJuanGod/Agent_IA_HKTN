@@ -12,7 +12,7 @@ class DQN:
 
     def __init__(
         self,
-        state_size=4,
+        state_size=6,
         action_size=4,
         learning_rate=0.001,
         gamma=0.99,
@@ -61,10 +61,13 @@ class DQN:
 
     def predict(self, state):
 
-        state_tensor = torch.tensor(
-            state,
-            dtype=torch.float32
-        ).unsqueeze(0).to(self.device)
+        if not isinstance(state, torch.Tensor):
+            state_tensor = torch.tensor(
+                state,
+                dtype=torch.float32
+            ).unsqueeze(0).to(self.device)
+        else:
+            state_tensor = state.unsqueeze(0).to(self.device)
 
         with torch.no_grad():
 
@@ -97,34 +100,15 @@ class DQN:
         if len(self.memory) < batch_size:
             return None
 
-        batch = self.memory.sample(
+        states, actions, rewards, next_states, dones = self.memory.sample(
             batch_size
         )
 
-        states = torch.tensor(
-            [x[0] for x in batch],
-            dtype=torch.float32
-        ).to(self.device)
-
-        actions = torch.tensor(
-            [x[1] for x in batch],
-            dtype=torch.long
-        ).to(self.device)
-
-        rewards = torch.tensor(
-            [x[2] for x in batch],
-            dtype=torch.float32
-        ).to(self.device)
-
-        next_states = torch.tensor(
-            [x[3] for x in batch],
-            dtype=torch.float32
-        ).to(self.device)
-
-        dones = torch.tensor(
-            [x[4] for x in batch],
-            dtype=torch.float32
-        ).to(self.device)
+        states = states.to(self.device)
+        actions = actions.to(self.device)
+        rewards = rewards.to(self.device)
+        next_states = next_states.to(self.device)
+        dones = dones.to(self.device)
 
         # Q(s,a)
         current_q = self.policy(
@@ -171,17 +155,25 @@ class DQN:
     def save(self, path):
 
         torch.save(
-            self.policy.state_dict(),
+            {
+                "model_state_dict": self.policy.state_dict(),
+                "optimizer_state_dict": self.optimizer.state_dict()
+            },
             path
         )
 
     def load(self, path):
 
-        self.policy.load_state_dict(
-            torch.load(
-                path,
-                map_location=self.device
-            )
+        checkpoint = torch.load(
+            path,
+            map_location=self.device
         )
+        
+        if "model_state_dict" in checkpoint:
+            self.policy.load_state_dict(checkpoint["model_state_dict"])
+            self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        else:
+            # Fallback para checkpoints viejos
+            self.policy.load_state_dict(checkpoint)
 
         self.update_target()
