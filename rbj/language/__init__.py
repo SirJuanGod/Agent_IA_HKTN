@@ -25,6 +25,8 @@ from .structured_decision import (
     StructuredLanguageDecision,
 )
 
+from .ambiguity import AmbiguityDetector, AmbiguityResult
+
 from .module import LanguageModule
 
 
@@ -46,6 +48,9 @@ __all__ = [
 
     "SJGLanguageStructuredInference",
     "StructuredLanguageDecision",
+
+    "AmbiguityDetector",
+    "AmbiguityResult",
 
     "LanguageModule",
 ]

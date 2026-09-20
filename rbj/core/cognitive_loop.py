@@ -1,34 +1,35 @@
-import sys
-import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from typing import Any, Dict, Optional
 
 from rbj.environment import EnvironmentAdapter
 from rbj.world import WorldModel
 from rbj.memory import MemoryModule
 from rbj.reasoning import Reasoner, ReasoningDecision
+from rbj.planning import Planner
 
 
 class CognitiveLoop:
 
     def __init__(
         self,
-        environment: EnvironmentAdapter,
-        world_model: WorldModel,
-        memory: MemoryModule,
-        reasoner: Optional[Reasoner] = None,
+        environment,
+        world_model,
+        memory,
+        reasoner=None,
+        planner=None,
     ):
         self.environment = environment
         self.world_model = world_model
         self.memory = memory
-
         self.reasoner = reasoner or Reasoner()
+        self.planner = planner or Planner()
 
         self.step_count = 0
 
         self.last_observation = None
         self.last_action = None
-        self.last_decision: Optional[ReasoningDecision] = None
+        self.last_decision = None
+        self.last_plan = None
 
     def reset(self):
 
@@ -54,6 +55,32 @@ class CognitiveLoop:
 
         return observation
 
+    def plan(self, command):
+
+        decision = self.reason(command)
+
+        world = self.world_model.to_dict()
+
+        plan = self.planner.plan(
+            decision=decision,
+            world=world,
+        )
+
+        self.last_plan = plan
+
+        self.memory.add_history({
+            "type": "PLANNING",
+            "step": self.step_count,
+            "command": command,
+            "decision": decision.to_dict(),
+            "plan": plan.to_dict(),
+        })
+
+        return plan
+
+    def get_last_plan(self):
+        return self.last_plan
+       
     def _process_observation(self, observation):
 
         environment_data = observation.get(
@@ -108,7 +135,14 @@ class CognitiveLoop:
 
         return decision
 
-    def step(self, action):
+    def step(self, action, command=None):
+        """
+        Ejecuta una acción en el entorno.
+
+        Args:
+            action: la acción física a ejecutar (e.g. {"type": "MOVE", "direction": "UP"})
+            command: el comando lingüístico o de alto nivel que originó la acción (opcional).
+        """
 
         self.last_action = action
 
@@ -124,7 +158,7 @@ class CognitiveLoop:
 
         self.memory.remember_episode(
             state_before=observation_before,
-            command=action,
+            command=command,
             action=action,
             state_after=observation_after,
             reward=None,

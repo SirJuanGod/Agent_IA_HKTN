@@ -40,6 +40,7 @@ class SJGLanguageInference:
         checkpoint = torch.load(
             checkpoint_path,
             map_location=self.device,
+            weights_only=False,
         )
 
         # --------------------------------------------------

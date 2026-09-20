@@ -1,3 +1,4 @@
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -72,7 +73,7 @@ class SemanticMemory:
 
         self.capacity = capacity
 
-        self._knowledge: List[Knowledge] = []
+        self._knowledge: deque = deque(maxlen=capacity)
 
         self._next_id = 0
 
@@ -139,9 +140,6 @@ class SemanticMemory:
         self._knowledge.append(
             knowledge
         )
-
-        if len(self._knowledge) > self.capacity:
-            self._knowledge.pop(0)
 
         return knowledge
 
