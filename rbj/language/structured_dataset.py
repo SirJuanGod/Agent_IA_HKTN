@@ -93,6 +93,47 @@ class StructuredLanguageGenerator:
         ],
     }
 
+    # Movimientos del robot RP1 (config/motions.json):
+    # target -> [(imperativo, subjuntivo)]
+    MOTIONS = {
+        "WAVE": [
+            ("saluda", "salude"),
+            ("saluda con la mano", "salude con la mano"),
+            ("haz un saludo", "haga un saludo"),
+            ("despídete con la mano", "se despida con la mano"),
+        ],
+        "RAISE_ARMS": [
+            ("levanta los brazos", "levante los brazos"),
+            ("sube los brazos", "suba los brazos"),
+            ("alza los brazos", "alce los brazos"),
+            ("pon los brazos arriba", "ponga los brazos arriba"),
+        ],
+        "POINT_LEFT": [
+            ("señala a la izquierda", "señale a la izquierda"),
+            ("apunta a la izquierda", "apunte a la izquierda"),
+            ("indica hacia la izquierda", "indique hacia la izquierda"),
+            ("señala con el brazo izquierdo", "señale con el brazo izquierdo"),
+        ],
+        "TWIST_WAIST": [
+            ("gira la cintura", "gire la cintura"),
+            ("gira el torso", "gire el torso"),
+            ("rota la cintura", "rote la cintura"),
+            ("mueve la cintura", "mueva la cintura"),
+        ],
+        "SQUAT": [
+            ("agáchate", "se agache"),
+            ("haz una sentadilla", "haga una sentadilla"),
+            ("flexiona las rodillas", "flexione las rodillas"),
+            ("ponte en cuclillas", "se ponga en cuclillas"),
+        ],
+        "BOW": [
+            ("haz una reverencia", "haga una reverencia"),
+            ("inclínate", "se incline"),
+            ("haz una inclinación", "haga una inclinación"),
+            ("saluda con una reverencia", "salude con una reverencia"),
+        ],
+    }
+
     def __init__(self, seed=42):
 
         self.random = random.Random(seed)
@@ -487,6 +528,57 @@ class StructuredLanguageGenerator:
         return examples
 
     # =========================================================
+    # PERFORM (movimientos del robot)
+    # =========================================================
+
+    def generate_perform(self, motion):
+
+        examples = []
+
+        for imperative, subjunctive in self.MOTIONS[motion]:
+
+            templates = [
+                (imperative, "perform_direct", 1),
+                (f"robot, {imperative}", "perform_direct", 1),
+                (f"{imperative} por favor", "perform_polite", 2),
+                (f"por favor {imperative}", "perform_polite", 2),
+            ]
+
+            for subject in self.SUBJECTS:
+
+                templates += [
+                    (f"haz que {subject} {subjunctive}", "perform_subject", 2),
+                    (f"quiero que {subject} {subjunctive}", "perform_subject", 2),
+                ]
+
+            subject = self.random.choice(self.SUBJECTS)
+
+            templates += [
+                (f"necesito que {subject} {subjunctive}", "perform_natural", 3),
+                (f"me gustaría que {subject} {subjunctive}", "perform_casual", 4),
+            ]
+
+            for text, family, difficulty in templates:
+
+                examples.append(
+                    LanguageExample(
+                        id=self._id(),
+                        text=text,
+                        intent="PERFORM",
+                        action="PERFORM",
+                        direction="NONE",
+                        target=motion,
+                        subject="ROBOT",
+                        distance=0,
+                        mode="COMMAND",
+                        difficulty=difficulty,
+                        template_family=family,
+                    )
+                )
+
+        return examples
+
+    # =========================================================
     # GENERACIÓN COMPLETA
     # =========================================================
 
@@ -525,6 +617,12 @@ class StructuredLanguageGenerator:
             self.generate_stop()
         )
 
+        for motion in self.MOTIONS:
+
+            examples.extend(
+                self.generate_perform(motion)
+            )
+
         return examples
 
     # =========================================================
@@ -542,16 +640,21 @@ class StructuredLanguageGenerator:
             "goto_subject",
             "stop_direct",
             "stop_subject",
+            "perform_direct",
+            "perform_subject",
+            "perform_polite",
         }
 
         validation_families = {
             "subject_distance",
             "goto_natural",
             "stop_natural",
+            "perform_natural",
         }
 
         test_families = {
             "natural",
+            "perform_casual",
         }
 
         train = []

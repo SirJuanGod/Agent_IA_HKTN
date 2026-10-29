@@ -14,8 +14,21 @@ from rbj.language.structured_decision import (
 
 CHECKPOINT = (
     "checkpoints/"
-    "sjg_language_037.pt"
+    "sjg_language_038.pt"
 )
+
+# texto -> comando esperado (incluye frases que no están en train)
+EXPECTED = {
+    "saluda con la mano": {"action": "PERFORM", "motion": "wave"},
+    "por favor levanta los brazos": {"action": "PERFORM", "motion": "raise_arms"},
+    "necesito que el robot señale a la izquierda": {"action": "PERFORM", "motion": "point_left"},
+    "me gustaría que mi robot gire la cintura": {"action": "PERFORM", "motion": "twist_waist"},
+    "agáchate": {"action": "PERFORM", "motion": "squat"},
+    "haz una reverencia": {"action": "PERFORM", "motion": "bow"},
+    "ve hacia la derecha": {"action": "MOVE", "direction": "RIGHT", "distance": 1},
+    "lleva el robot hasta la meta": {"action": "GO_TO", "target": "GOAL"},
+    "detente": {"action": "STOP"},
+}
 
 
 def print_prediction(
@@ -130,6 +143,18 @@ def main():
             f"Command: "
             f"{result['command']}"
         )
+
+    for text, command in EXPECTED.items():
+
+        result = decision.evaluate(
+            model.predict(text)
+        )
+
+        assert result["command"] == command, (
+            text, result
+        )
+
+    print("\ntest_structured_language OK")
 
 
 if __name__ == "__main__":

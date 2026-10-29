@@ -163,6 +163,33 @@ class StructuredLanguageDecision:
                 }
 
         # -------------------------------------------------
+        # PERFORM — requiere intent + action + target (movimiento)
+        # -------------------------------------------------
+
+        if intent == "PERFORM" and prediction["target"] not in ("NONE", "GOAL"):
+
+            required = [
+                prediction["intent_confidence"],
+                prediction["action_confidence"],
+                prediction["target_confidence"],
+            ]
+
+            required_avg = sum(required) / len(required)
+
+            if required_avg >= self.threshold:
+
+                return {
+                    "accepted": True,
+                    "status": "READY",
+                    "reason": "PERFORM_COMMAND",
+                    "command": {
+                        "action": "PERFORM",
+                        "motion": prediction["target"].lower(),
+                    },
+                    "confidence": required_avg,
+                }
+
+        # -------------------------------------------------
         # No superó el umbral
         # -------------------------------------------------
 
@@ -235,7 +262,10 @@ class StructuredLanguageDecision:
             if prediction["direction_confidence"] < self.threshold:
                 return "MISSING_OR_UNCERTAIN_DIRECTION"
 
-        if prediction["intent"] == "GO_TO":
+        if prediction["intent"] == "PERFORM" and prediction["target"] in ("NONE", "GOAL"):
+            return "UNCERTAIN_TARGET"
+
+        if prediction["intent"] in ("GO_TO", "PERFORM"):
             if prediction["target_confidence"] < self.threshold:
                 return "UNCERTAIN_TARGET"
 

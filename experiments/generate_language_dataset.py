@@ -1,9 +1,9 @@
 from pathlib import Path
 from sys import path
 
-path.append(str(Path(__file__).parent / ".." / "rbj"))
+path.append(str(Path(__file__).parent / ".."))
 
-from language.structured_dataset import (
+from rbj.language.structured_dataset import (
     StructuredLanguageGenerator,
     save_examples,
     save_json,
