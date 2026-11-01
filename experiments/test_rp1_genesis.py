@@ -28,7 +28,7 @@ def main():
     args = parser.parse_args()
 
     gs.init(backend=gs.cpu, logging_level="warning")
-    genesis = RP1GenesisEnv(num_envs=1, motions=[args.motion])
+    genesis = RP1GenesisEnv(num_envs=1, motions=[args.motion], randomize=False)
     genesis.build()
 
     # el reset de referencia arranca siempre en el mismo fotograma que MuJoCo
@@ -62,9 +62,12 @@ def main():
 
         if step % 10 == 0 or terminated_g.any() or terminated_m:
             obs_g = obs_g[0].cpu().numpy()
-            print(f"paso {step:3}: |q_g - q_m| max {np.abs(obs_g[:28] - obs_m[:28]).max():.3f} | "
-                  f"altura g/m {obs_g[-1]:.3f}/{obs_m[-1]:.3f} | gravedad z g/m {obs_g[-5]:.2f}/{obs_m[-5]:.2f} | "
-                  f"terminado g/m {bool(terminated_g.any())}/{terminated_m}")
+            start, diffs = 0, []
+            for name, size in LAYOUT:
+                diffs.append(f"{name} {np.abs(obs_g[start:start + size] - obs_m[start:start + size]).max():.3f}")
+                start += size
+            print(f"paso {step:3}: " + " | ".join(diffs) +
+                  f" | terminado g/m {bool(terminated_g.any())}/{terminated_m}")
 
         if terminated_g.any() or terminated_m:
             break

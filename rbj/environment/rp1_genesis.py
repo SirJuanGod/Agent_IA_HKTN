@@ -26,6 +26,7 @@ from genesis_forge.managers import (
     RewardManager,
     TerminationManager,
 )
+from genesis_forge.managers.actuator import NoisyValue
 from genesis_forge.mdp import terminations
 
 from rbj.environment.rp1_mujoco import ACTION_SCALE, DECIMATION, ROOT, RP1MotionEnv
@@ -33,6 +34,13 @@ from rbj.environment.rp1_mujoco import ACTION_SCALE, DECIMATION, ROOT, RP1Motion
 
 ROBOT_MJCF = ROOT / "third_party" / "RP1_description" / "mjcf" / "robot.xml"
 EPISODE_SECONDS = 6.0
+
+# aleatorización de dominio: sin ella la política se sobreajusta a la física de Genesis y vuelca
+# en MuJoCo (model_800: 8/9 movimientos en Genesis, 1/9 en MuJoCo)
+PD_NOISE = 0.15
+FRICTION_RANGE = (0.6, 1.4)
+PUSH_SPEED = 0.3  # m/s
+PUSH_INTERVAL = 20  # pasos; cada vez se empuja al 10% de los entornos
 
 # todo lo que no sea muslo, rodilla o pie tocando el suelo = caída (igual que en MuJoCo)
 NON_LEG_LINKS = [
@@ -142,6 +150,12 @@ def reset_to_reference(env, envs_idx, **_):
     env.robot.set_quat(motion.quat[m, k], envs_idx=envs_idx)
     env.robot.set_dofs_velocity(qd, env.actuators.dofs_idx, envs_idx=envs_idx)
 
+    if env.randomize:
+        friction = torch.empty((len(envs_idx), 1), device=gs.device).uniform_(*FRICTION_RANGE)
+        env.robot.set_friction_ratio(
+            friction.expand(-1, env.robot.n_links), list(range(env.robot.n_links)), envs_idx=envs_idx
+        )
+
 
 # --- observaciones (mismo orden que RP1MotionEnv._obs) -------------------------------
 
@@ -211,7 +225,8 @@ def tilted(env):
 
 
 class RP1GenesisEnv(ManagedEnvironment):
-    def __init__(self, num_envs=4096, motions=None, headless=True):
+    def __init__(self, num_envs=4096, motions=None, headless=True, randomize=True):
+        self.randomize = randomize
         dt = RP1MotionEnv(fixed_base=False).dt
         tables, frames, names, phases, joints = bake_reference(dt)
 
@@ -235,19 +250,26 @@ class RP1GenesisEnv(ManagedEnvironment):
     def config(self):
         joints = self.joints
         exact = lambda values: {f"^{re.escape(n)}$": float(v) for n, v in zip(joints["names"], values)}
+        gain = lambda values: exact(values) if not self.randomize else {
+            pattern: NoisyValue(value, PD_NOISE * value) for pattern, value in exact(values).items()
+        }
+        noise = lambda value: value if self.randomize else None
 
         self.actuators = ActuatorManager(
             self,
             joint_names=".*",
             default_pos=0.0,
-            kp=exact(joints["kp"]),
-            kv=exact(joints["kv"]),
+            kp=gain(joints["kp"]),
+            kv=gain(joints["kv"]),
             max_force=exact(joints["max_force"]),
             armature=exact(joints["armature"]),
             damping=exact(joints["damping"]),
             frictionloss=exact(joints["frictionloss"]),
         )
-        ReferenceResidualAction(self, actuator_manager=self.actuators, use_default_offset=False)
+        ReferenceResidualAction(
+            self, actuator_manager=self.actuators, use_default_offset=False,
+            delay_step=(0, 1) if self.randomize else 0,
+        )
 
         self.entity = EntityManager(self, self.robot, on_reset={"reference": {"fn": reset_to_reference}})
         self.non_leg_contact = ContactManager(
@@ -255,14 +277,14 @@ class RP1GenesisEnv(ManagedEnvironment):
         )
 
         ObservationManager(self, cfg={
-            "q": {"fn": obs_q},
-            "qd": {"fn": obs_qd},
+            "q": {"fn": obs_q, "noise": noise(0.01)},
+            "qd": {"fn": obs_qd, "noise": noise(0.2)},
             "q_next": {"fn": obs_q_next},
             "phase": {"fn": obs_phase},
             "motion": {"fn": obs_motion},
-            "gravity": {"fn": obs_gravity},
-            "angular_velocity": {"fn": obs_angular_velocity},
-            "height": {"fn": obs_height},
+            "gravity": {"fn": obs_gravity, "noise": noise(0.02)},
+            "angular_velocity": {"fn": obs_angular_velocity, "noise": noise(0.1)},
+            "height": {"fn": obs_height, "noise": noise(0.01)},
         })
 
         per_step = 1.0 / self.dt
@@ -300,4 +322,10 @@ class RP1GenesisEnv(ManagedEnvironment):
     def step(self, actions):
         # mismo calendario que MuJoCo: objetivo y recompensa con ref(t+dt), observación con ref(t+2dt)
         self.motion.k += 1
+
+        if self.randomize and self.step_count % PUSH_INTERVAL == 0 and self.num_envs >= 10:
+            pushed = torch.randperm(self.num_envs, device=gs.device)[:self.num_envs // 10]
+            speed = torch.empty((len(pushed), 2), device=gs.device).uniform_(-PUSH_SPEED, PUSH_SPEED)
+            self.robot.set_dofs_velocity(speed, dofs_idx_local=[0, 1], envs_idx=pushed)
+
         return super().step(actions)
