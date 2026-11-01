@@ -47,6 +47,8 @@ def main():
     parser.add_argument("--iterations", type=int, default=3000)
     parser.add_argument("--log-dir", default=str(Path(__file__).resolve().parent.parent / "logs" / "rp1_genesis"))
     parser.add_argument("--resume", help="checkpoint model_<it>.pt de RSL-RL para continuar")
+    parser.add_argument("--save-interval", type=int, default=TRAIN_CFG["save_interval"],
+                        help="iteraciones entre checkpoints (bájalo si Colab corta la sesión a menudo)")
     args = parser.parse_args()
 
     gs.init(backend=gs.gpu if torch.cuda.is_available() else gs.cpu, logging_level="warning")
@@ -64,7 +66,8 @@ def main():
     env = RslRlWrapper(genesis_env)
     env.reset()
 
-    runner = OnPolicyRunner(env, copy.deepcopy(TRAIN_CFG), args.log_dir, device=gs.device)
+    runner = OnPolicyRunner(env, {**copy.deepcopy(TRAIN_CFG), "save_interval": args.save_interval},
+                            args.log_dir, device=gs.device)
 
     if args.resume:
         # map_location: un checkpoint guardado en GPU (Colab) se puede reanudar o exportar en CPU
