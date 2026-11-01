@@ -50,13 +50,17 @@ def main():
 
     gs.init(backend=gs.gpu if torch.cuda.is_available() else gs.cpu, logging_level="warning")
 
+    from rbj.environment.rp1_genesis import RP1GenesisEnv
+
+    genesis_env = RP1GenesisEnv(num_envs=args.envs)
+    # construir ANTES de importar RSL-RL: arrastra TensorBoard → TensorFlow (preinstalado en
+    # Colab), y con TensorFlow cargado el contexto EGL de Genesis hace segfault en scene.build()
+    genesis_env.build()
+
     from genesis_forge.wrappers import RslRlWrapper
     from rsl_rl.runners import OnPolicyRunner
 
-    from rbj.environment.rp1_genesis import RP1GenesisEnv
-
-    env = RslRlWrapper(RP1GenesisEnv(num_envs=args.envs))
-    env.build()
+    env = RslRlWrapper(genesis_env)
     env.reset()
 
     runner = OnPolicyRunner(env, copy.deepcopy(TRAIN_CFG), args.log_dir, device=gs.device)
