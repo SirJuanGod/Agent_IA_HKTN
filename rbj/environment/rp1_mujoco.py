@@ -249,23 +249,43 @@ class RP1Environment(Environment):
         {"action": "STOP"}
     """
 
-    def __init__(self, policy_path, vecnorm_path, fixed_base=True, viewer=False):
-        from stable_baselines3 import PPO
-        from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+    def __init__(self, policy_path, vecnorm_path=None, fixed_base=True, viewer=False):
+        """
+        policy_path: .zip de Stable-Baselines3 (con su vecnorm_path) o .pt TorchScript
+        exportado desde Genesis-Forge (experiments/train_rp1_genesis.py, normalizador incluido).
+        """
 
         self.env = RP1MotionEnv(fixed_base=fixed_base)
-        self.policy = PPO.load(policy_path, device="cpu")
+        obs_size = self.env.observation_space.shape[0]
 
-        # el one-hot de movimientos depende de config/motions.json
-        if self.policy.observation_space.shape != self.env.observation_space.shape:
-            raise ValueError(
-                f"{policy_path} se entrenó con otra lista de movimientos "
-                f"(obs {self.policy.observation_space.shape} vs {self.env.observation_space.shape}); "
-                "reentrena con experiments/train_rp1_motions.py"
-            )
+        if str(policy_path).endswith(".pt"):
+            import torch
 
-        self.normalizer = VecNormalize.load(vecnorm_path, DummyVecEnv([lambda: self.env]))
-        self.normalizer.training = False
+            policy = torch.jit.load(str(policy_path))
+            self.act = lambda obs: policy(torch.as_tensor(obs)[None]).detach().numpy()[0]
+
+            try:
+                self.act(np.zeros(obs_size, dtype=np.float32))
+            except RuntimeError as error:
+                raise ValueError(f"{policy_path} no acepta observaciones de {obs_size} valores "
+                                 "(¿otra lista de movimientos en config/motions.json?)") from error
+        else:
+            from stable_baselines3 import PPO
+            from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+
+            policy = PPO.load(policy_path, device="cpu")
+
+            # el one-hot de movimientos depende de config/motions.json
+            if policy.observation_space.shape != self.env.observation_space.shape:
+                raise ValueError(
+                    f"{policy_path} se entrenó con otra lista de movimientos "
+                    f"(obs {policy.observation_space.shape} vs {self.env.observation_space.shape}); "
+                    "reentrena con experiments/train_rp1_motions.py"
+                )
+
+            normalizer = VecNormalize.load(vecnorm_path, DummyVecEnv([lambda: self.env]))
+            normalizer.training = False
+            self.act = lambda obs: policy.predict(normalizer.normalize_obs(obs), deterministic=True)[0]
 
         self.viewer = None
 
@@ -316,9 +336,7 @@ class RP1Environment(Environment):
         steps = int(self.env.library.durations[self.env.motion] / self.env.dt)
 
         for _ in range(steps):
-            norm_obs = self.normalizer.normalize_obs(self.obs)
-            act, _ = self.policy.predict(norm_obs, deterministic=True)
-            self.obs, _, terminated, _, _ = self.env.step(act)
+            self.obs, _, terminated, _, _ = self.env.step(self.act(self.obs))
             self._sync()
 
             if terminated:

@@ -39,6 +39,7 @@ def main():
     parser.add_argument("--motion", default="wave")
     parser.add_argument("--phase", choices=["fixed", "floating"], default="fixed")
     parser.add_argument("--reference", action="store_true", help="solo keyframes, sin política")
+    parser.add_argument("--policy", help="política .pt de Genesis-Forge (por defecto, el .zip de SB3 de la fase)")
     args = parser.parse_args()
 
     fixed_base = args.phase == "fixed"
@@ -47,7 +48,7 @@ def main():
         play_reference(args.motion, fixed_base)
         return
 
-    policy = CHECKPOINTS / f"rp1_motions_{args.phase}.zip"
+    policy = args.policy or CHECKPOINTS / f"rp1_motions_{args.phase}.zip"
     robot = RP1Environment(policy, str(policy).replace(".zip", "_vecnorm.pkl"), fixed_base, viewer=True)
     robot.reset()
 

@@ -15,9 +15,10 @@ LANGUAGE_CHECKPOINT = ROOT / "checkpoints" / "sjg_language_038.pt"
 def main():
     parser = argparse.ArgumentParser(description="Lenguaje natural → movimientos de RP1")
     parser.add_argument("--phase", choices=["fixed", "floating"], default="fixed")
+    parser.add_argument("--policy", help="política .pt de Genesis-Forge (por defecto, el .zip de SB3 de la fase)")
     args = parser.parse_args()
 
-    policy = ROOT / "checkpoints" / f"rp1_motions_{args.phase}.zip"
+    policy = args.policy or ROOT / "checkpoints" / f"rp1_motions_{args.phase}.zip"
 
     language = LanguageModule(str(LANGUAGE_CHECKPOINT))
     robot = RP1Environment(
