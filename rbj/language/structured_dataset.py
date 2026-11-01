@@ -132,6 +132,25 @@ class StructuredLanguageGenerator:
             ("haz una inclinación", "haga una inclinación"),
             ("saluda con una reverencia", "salude con una reverencia"),
         ],
+        # movimientos extraídos de video (experiments/video_to_motion.py)
+        "JUMPING_JACKS": [
+            ("haz saltos de tijera", "haga saltos de tijera"),
+            ("haz jumping jacks", "haga jumping jacks"),
+            ("salta abriendo brazos y piernas", "salte abriendo brazos y piernas"),
+            ("haz tijeras", "haga tijeras"),
+        ],
+        "SQUAT_FRONT_RAISE": [
+            ("haz una sentadilla con los brazos al frente", "haga una sentadilla con los brazos al frente"),
+            ("haz una sentadilla levantando los brazos", "haga una sentadilla levantando los brazos"),
+            ("agáchate levantando los brazos", "se agache levantando los brazos"),
+            ("haz una sentadilla profunda", "haga una sentadilla profunda"),
+        ],
+        "FORWARD_LUNGE": [
+            ("haz una zancada", "haga una zancada"),
+            ("da una zancada", "dé una zancada"),
+            ("haz un desplante", "haga un desplante"),
+            ("da un paso largo y baja la rodilla", "dé un paso largo y baje la rodilla"),
+        ],
     }
 
     def __init__(self, seed=42):

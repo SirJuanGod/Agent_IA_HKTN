@@ -32,7 +32,13 @@ def main():
     )
 
     if args.init:
-        venv = VecNormalize.load(args.init.replace(".zip", "_vecnorm.pkl"), venv)
+        init = Path(args.init)
+        vecnorm = init.with_name(init.stem + "_vecnorm.pkl")
+
+        if not vecnorm.exists():  # copia periódica de SB3: rp1_<n>_steps.zip → rp1_vecnormalize_<n>_steps.pkl
+            vecnorm = init.with_name(init.stem.replace("rp1_", "rp1_vecnormalize_", 1) + ".pkl")
+
+        venv = VecNormalize.load(str(vecnorm), venv)
         model = PPO.load(args.init, env=venv, device="cpu")
     else:
         venv = VecNormalize(venv, clip_obs=10.0)

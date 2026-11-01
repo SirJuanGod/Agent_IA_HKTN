@@ -4,3 +4,4 @@ matplotlib>=3.7.0
 mujoco>=3.2
 gymnasium>=1.0
 stable-baselines3>=2.3
+mediapipe>=0.10

@@ -86,6 +86,14 @@ class RP1MotionEnv(gym.Env):
         self.max_steps = int(episode_seconds / self.dt)
         self.base_id = self.model.body("base_link").id
 
+        # solo muslo, rodilla y pie (la zancada apoya la rodilla) pueden tocar el suelo;
+        # hip_pitch/hip_roll son parte de la pelvis: tocar con ellos es estar sentado
+        self.floor_id = self.model.geom("floor").id if not fixed_base else -1
+        self.may_touch_floor = np.array([
+            any(part in self.model.body(b).name for part in ("hip_yaw", "knee", "ankle"))
+            for b in range(self.model.nbody)
+        ])
+
         n = self.model.nu
         obs_size = 3 * n + 2 + len(self.library.names) + 7
 
@@ -128,6 +136,7 @@ class RP1MotionEnv(gym.Env):
         self.data.ctrl[:] = q_ref
 
         if not self.fixed_base:
+            self._flatten_stance_foot()
             mujoco.mj_kinematics(self.model, self.data)
             self.data.qpos[2] -= self._lowest_geom_z() - 0.001
 
@@ -161,8 +170,9 @@ class RP1MotionEnv(gym.Env):
         terminated = False
 
         if not self.fixed_base:
-            gravity_z = self._base_gravity()[2]
-            terminated = self.data.xpos[self.base_id][2] < 0.45 or gravity_z > -0.5
+            # caída = torso muy inclinado o cualquier parte que no sea pierna tocando el suelo
+            # (la altura no sirve: la sentadilla profunda baja la base a ~0.20 m)
+            terminated = self._base_gravity()[2] > -0.5 or self._non_leg_floor_contact()
 
         truncated = self.steps >= self.max_steps
         info = {"motion": self.library.names[self.motion], "pose_reward": pose}
@@ -173,10 +183,40 @@ class RP1MotionEnv(gym.Env):
         rotation = self.data.xmat[self.base_id].reshape(3, 3)
         return rotation.T @ np.array([0.0, 0.0, -1.0])
 
+    def _flatten_stance_foot(self):
+        """
+        Inclina la base para que el pie más plano quede apoyado: las poses
+        humanas (sentadilla, zancada) inclinan todo el cuerpo, no solo las piernas.
+        """
+
+        self.data.qpos[3:7] = [1, 0, 0, 0]
+        mujoco.mj_kinematics(self.model, self.data)
+
+        soles = [self.data.xmat[self.model.body(f"{side}_ankle_roll_link").id].reshape(3, 3)[:, 2]
+                 for side in ("left", "right")]
+        sole = max(soles, key=lambda normal: normal[2])
+
+        to_sole = np.zeros(4)
+        mujoco.mju_quatZ2Vec(to_sole, sole)
+        mujoco.mju_negQuat(self.data.qpos[3:7], to_sole)
+
+    def _non_leg_floor_contact(self):
+        contact = self.data.contact
+        on_floor = (contact.geom1 == self.floor_id) | (contact.geom2 == self.floor_id)
+        other = np.where(contact.geom1 == self.floor_id, contact.geom2, contact.geom1)[on_floor]
+        return not self.may_touch_floor[self.model.geom_bodyid[other]].all()
+
     def _lowest_geom_z(self):
+        """
+        Punto más bajo de las geometrías de colisión (su caja envolvente, no su centro).
+        """
+
         collision = self.model.geom_contype > 0
         collision &= self.model.geom_bodyid > 0
-        return np.min(self.data.geom_xpos[collision, 2])
+        down_row = self.data.geom_xmat[collision].reshape(-1, 3, 3)[:, 2, :]
+        center, half = self.model.geom_aabb[collision, :3], self.model.geom_aabb[collision, 3:]
+        lowest = self.data.geom_xpos[collision, 2] + np.sum(down_row * center, axis=1)
+        return np.min(lowest - np.sum(np.abs(down_row) * half, axis=1))
 
     def _obs(self):
         duration = self.library.durations[self.motion]
@@ -215,6 +255,15 @@ class RP1Environment(Environment):
 
         self.env = RP1MotionEnv(fixed_base=fixed_base)
         self.policy = PPO.load(policy_path, device="cpu")
+
+        # el one-hot de movimientos depende de config/motions.json
+        if self.policy.observation_space.shape != self.env.observation_space.shape:
+            raise ValueError(
+                f"{policy_path} se entrenó con otra lista de movimientos "
+                f"(obs {self.policy.observation_space.shape} vs {self.env.observation_space.shape}); "
+                "reentrena con experiments/train_rp1_motions.py"
+            )
+
         self.normalizer = VecNormalize.load(vecnorm_path, DummyVecEnv([lambda: self.env]))
         self.normalizer.training = False
 
