@@ -8,6 +8,7 @@ la política a TorchScript para ejecutarla en el entorno MuJoCo local:
 
 import argparse
 import copy
+import os
 import sys
 from pathlib import Path
 
@@ -76,7 +77,11 @@ def main():
     runner.learn(num_learning_iterations=args.iterations)
 
     runner.export_policy_to_jit(args.log_dir, "rp1_policy.pt")
-    print(f"Política exportada: {Path(args.log_dir) / 'rp1_policy.pt'}")
+    print(f"Política exportada: {Path(args.log_dir) / 'rp1_policy.pt'}", flush=True)
+
+    # al destruir el contexto EGL de Genesis el intérprete hace segfault al salir (Colab):
+    # todo está guardado, así que se sale sin ese teardown
+    os._exit(0)
 
 
 if __name__ == "__main__":
