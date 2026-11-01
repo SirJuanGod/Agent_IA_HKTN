@@ -67,7 +67,8 @@ def main():
     runner = OnPolicyRunner(env, copy.deepcopy(TRAIN_CFG), args.log_dir, device=gs.device)
 
     if args.resume:
-        runner.load(args.resume)
+        # map_location: un checkpoint guardado en GPU (Colab) se puede reanudar o exportar en CPU
+        runner.load(args.resume, map_location=gs.device)
 
     # init_at_random_ep_len de RSL-RL no funciona con Forge (max_episode_length es por entorno):
     # se reparte a mano para que los episodios no terminen todos a la vez
